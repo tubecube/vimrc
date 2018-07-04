@@ -17,11 +17,18 @@ endfunction
 " but NeoVim does. Small messages can be echoed in Vim 8, and larger messages
 " have to be shown in preview windows.
 function! ale#util#ShowMessage(string) abort
+    if !has('nvim')
+        call ale#preview#CloseIfTypeMatches('ale-preview.message')
+    endif
+
     " We have to assume the user is using a monospace font.
     if has('nvim') || (a:string !~? "\n" && len(a:string) < &columns)
         execute 'echo a:string'
     else
-        call ale#preview#Show(split(a:string, "\n"))
+        call ale#preview#Show(split(a:string, "\n"), {
+        \   'filetype': 'ale-preview.message',
+        \   'stay_here': 1,
+        \})
     endif
 endfunction
 
@@ -39,27 +46,72 @@ if !exists('g:ale#util#nul_file')
     endif
 endif
 
+" Given a job, a buffered line of data, a list of parts of lines, a mode data
+" is being read in, and a callback, join the lines of output for a NeoVim job
+" or socket together, and call the callback with the joined output.
+"
+" Note that jobs and IDs are the same thing on NeoVim.
+function! ale#util#JoinNeovimOutput(job, last_line, data, mode, callback) abort
+    if a:mode is# 'raw'
+        call a:callback(a:job, join(a:data, "\n"))
+
+        return ''
+    endif
+
+    let l:lines = a:data[:-2]
+
+    if len(a:data) > 1
+        let l:lines[0] = a:last_line . l:lines[0]
+        let l:new_last_line = a:data[-1]
+    else
+        let l:new_last_line = a:last_line . get(a:data, 0, '')
+    endif
+
+    for l:line in l:lines
+        call a:callback(a:job, l:line)
+    endfor
+
+    return l:new_last_line
+endfunction
+
 " Return the number of lines for a given buffer.
 function! ale#util#GetLineCount(buffer) abort
     return len(getbufline(a:buffer, 1, '$'))
 endfunction
 
 function! ale#util#GetFunction(string_or_ref) abort
-    if type(a:string_or_ref) == type('')
+    if type(a:string_or_ref) is v:t_string
         return function(a:string_or_ref)
     endif
 
     return a:string_or_ref
 endfunction
 
+" Open the file (at the given line).
+" options['open_in'] can be:
+"   current-buffer (default)
+"   tab
+"   vertical-split
+"   horizontal-split
 function! ale#util#Open(filename, line, column, options) abort
-    if get(a:options, 'open_in_tab', 0)
-        call ale#util#Execute('tabedit ' . fnameescape(a:filename))
+    let l:open_in = get(a:options, 'open_in', 'current-buffer')
+    let l:args_to_open = '+' . a:line . ' ' . fnameescape(a:filename)
+
+    if l:open_in is# 'tab'
+        call ale#util#Execute('tabedit ' . l:args_to_open)
+    elseif l:open_in is# 'horizontal-split'
+        call ale#util#Execute('split ' . l:args_to_open)
+    elseif l:open_in is# 'vertical-split'
+        call ale#util#Execute('vsplit ' . l:args_to_open)
+    elseif bufnr(a:filename) isnot bufnr('')
+        " Open another file only if we need to.
+        call ale#util#Execute('edit ' . l:args_to_open)
     else
-        call ale#util#Execute('edit ' . fnameescape(a:filename))
+        normal! m`
     endif
 
     call cursor(a:line, a:column)
+    normal! zz
 endfunction
 
 let g:ale#util#error_priority = 5
@@ -231,9 +283,8 @@ endfunction
 " See :help sandbox
 function! ale#util#InSandbox() abort
     try
-        function! s:SandboxCheck() abort
-        endfunction
-    catch /^Vim\%((\a\+)\)\=:E48/
+        let &l:equalprg=&l:equalprg
+    catch /E48/
         " E48 is the sandbox error.
         return 1
     endtry
@@ -241,14 +292,23 @@ function! ale#util#InSandbox() abort
     return 0
 endfunction
 
-" Get the number of milliseconds since some vague, but consistent, point in
-" the past.
-"
-" This function can be used for timing execution, etc.
-"
-" The time will be returned as a Number.
-function! ale#util#ClockMilliseconds() abort
-    return float2nr(reltimefloat(reltime()) * 1000)
+function! ale#util#Tempname() abort
+    let l:clear_tempdir = 0
+
+    if exists('$TMPDIR') && empty($TMPDIR)
+        let l:clear_tempdir = 1
+        let $TMPDIR = '/tmp'
+    endif
+
+    try
+        let l:name = tempname() " no-custom-checks
+    finally
+        if l:clear_tempdir
+            let $TMPDIR = ''
+        endif
+    endtry
+
+    return l:name
 endfunction
 
 " Given a single line, or a List of lines, and a single pattern, or a List
@@ -258,8 +318,8 @@ endfunction
 " Only the first pattern which matches a line will be returned.
 function! ale#util#GetMatches(lines, patterns) abort
     let l:matches = []
-    let l:lines = type(a:lines) == type([]) ? a:lines : [a:lines]
-    let l:patterns = type(a:patterns) == type([]) ? a:patterns : [a:patterns]
+    let l:lines = type(a:lines) is v:t_list ? a:lines : [a:lines]
+    let l:patterns = type(a:patterns) is v:t_list ? a:patterns : [a:patterns]
 
     for l:line in l:lines
         for l:pattern in l:patterns
@@ -337,7 +397,7 @@ function! ale#util#FuzzyJSONDecode(data, default) abort
         return a:default
     endif
 
-    let l:str = type(a:data) == type('') ? a:data : join(a:data, '')
+    let l:str = type(a:data) is v:t_string ? a:data : join(a:data, '')
 
     try
         let l:result = json_decode(l:str)
@@ -359,10 +419,10 @@ endfunction
 " the buffer.
 function! ale#util#Writefile(buffer, lines, filename) abort
     let l:corrected_lines = getbufvar(a:buffer, '&fileformat') is# 'dos'
-    \   ? map(copy(a:lines), 'v:val . "\r"')
+    \   ? map(copy(a:lines), 'substitute(v:val, ''\r*$'', ''\r'', '''')')
     \   : a:lines
 
-    call writefile(l:corrected_lines, a:filename) " no-custom-checks
+    call writefile(l:corrected_lines, a:filename, 'S') " no-custom-checks
 endfunction
 
 if !exists('s:patial_timers')
@@ -406,3 +466,14 @@ function! ale#util#Col(str, chr) abort
 
     return strlen(join(split(a:str, '\zs')[0:a:chr - 2], '')) + 1
 endfunction
+
+function! ale#util#FindItemAtCursor(buffer) abort
+    let l:info = get(g:ale_buffer_info, a:buffer, {})
+    let l:loclist = get(l:info, 'loclist', [])
+    let l:pos = getpos('.')
+    let l:index = ale#util#BinarySearch(l:loclist, a:buffer, l:pos[1], l:pos[2])
+    let l:loc = l:index >= 0 ? l:loclist[l:index] : {}
+
+    return [l:info, l:loc]
+endfunction
+

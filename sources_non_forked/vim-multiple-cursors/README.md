@@ -1,7 +1,5 @@
 # vim-multiple-cursors
 [![Build Status](https://travis-ci.org/terryma/vim-multiple-cursors.svg)](https://travis-ci.org/terryma/vim-multiple-cursors)
-[![Issue Stats](http://issuestats.com/github/terryma/vim-multiple-cursors/badge/pr?style=flat)](http://issuestats.com/github/terryma/vim-multiple-cursors)
-[![Issue Stats](http://issuestats.com/github/terryma/vim-multiple-cursors/badge/issue?style=flat)](http://issuestats.com/github/terryma/vim-multiple-cursors)
 
 ## Contents
  - [About](#about)
@@ -39,9 +37,23 @@ Vim command sequence: `df[$r,0f,v<C-n>…<C-n>c<CR><Up><Del><Right><Right><Right
 To see what keystrokes are used for the above examples, see [the wiki page](https://github.com/terryma/vim-multiple-cursors/wiki/Keystrokes-for-example-gifs).
 
 ## Installation
-Install using [Pathogen], [Vundle], [Neobundle], or your favorite Vim package manager.
+Install using [Pathogen], [Vundle], [Neobundle], [vim-plug], or your favorite Vim package manager.
 
-Requires vim 7.4 or later for full functionality.
+Requires vim 7.4 or newer for full functionality.
+
+### vim-plug instructions
+
+1. Paste this block into the top of `~/.vimrc`.
+
+```vim script
+call plug#begin()
+
+Plug 'terryma/vim-multiple-cursors'
+
+call plug#end()
+```
+
+2. Start vim and execute `:PlugInstall`.
 
 ## Quick Start
 ### normal mode / visual mode
@@ -175,6 +187,33 @@ g:multi_cursor_select_all_key
 #### **Q** <kbd>CTRL</kbd>+<kbd>n</kbd> doesn't seem to work in gVIM?
 **A** Try setting `set selection=inclusive` in your `~/.gvimrc`
 
+**A** Alternatively, you can just temporarily disable _exclusive_ selection whenever the plugin is active:
+```VimL
+augroup MultipleCursorsSelectionFix
+    autocmd User MultipleCursorsPre  if &selection ==# 'exclusive' | let g:multi_cursor_save_selection = &selection | set selection=inclusive | endif
+    autocmd User MultipleCursorsPost if exists('g:multi_cursor_save_selection') | let &selection = g:multi_cursor_save_selection | unlet g:multi_cursor_save_selection | endif
+augroup END
+```
+
+### **Q** deoplete insert giberrish, how to fix this?
+**A** use the `Multiple_cursors` functions, add this in your vimrc:
+
+```VimL
+    func! Multiple_cursors_before()
+      if deoplete#is_enabled()
+        call deoplete#disable()
+        let g:deoplete_is_enable_before_multi_cursors = 1
+      else
+        let g:deoplete_is_enable_before_multi_cursors = 0
+      endif
+    endfunc
+    func! Multiple_cursors_after()
+      if g:deoplete_is_enable_before_multi_cursors
+        call deoplete#enable()
+      endif
+    endfunc
+```
+
 #### **Q** is it also working on Mac?
 **A** On Mac OS, [MacVim](https://code.google.com/p/macvim/) is known to work.
 
@@ -213,4 +252,5 @@ Obviously inspired by Sublime Text's [multiple selection][sublime-multiple-selec
 [Pathogen]:http://github.com/tpope/vim-pathogen
 [Vundle]:http://github.com/gmarik/vundle
 [Neobundle]:http://github.com/Shougo/neobundle.vim
+[vim-plug]:https://github.com/junegunn/vim-plug
 [emacs-multiple-cursors]:https://github.com/magnars/multiple-cursors.el

@@ -1,7 +1,11 @@
 let g:ale_cs_mcs_options = get(g:, 'ale_cs_mcs_options', '')
 
 function! ale_linters#cs#mcs#GetCommand(buffer) abort
-    return 'mcs -unsafe --parse ' . ale#Var(a:buffer, 'cs_mcs_options') . ' %t'
+    let l:options = ale#Var(a:buffer, 'cs_mcs_options')
+
+    return 'mcs -unsafe --parse'
+    \   . (!empty(l:options) ? ' ' . l:options : '')
+    \   . ' %t'
 endfunction
 
 function! ale_linters#cs#mcs#Handle(buffer, lines) abort
@@ -28,6 +32,6 @@ call ale#linter#Define('cs',{
 \   'name': 'mcs',
 \   'output_stream': 'stderr',
 \   'executable': 'mcs',
-\   'command_callback': 'ale_linters#cs#mcs#GetCommand',
+\   'command': function('ale_linters#cs#mcs#GetCommand'),
 \   'callback': 'ale_linters#cs#mcs#Handle',
 \})

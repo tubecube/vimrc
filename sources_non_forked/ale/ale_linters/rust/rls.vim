@@ -2,21 +2,13 @@
 " Description: A language server for Rust
 
 call ale#Set('rust_rls_executable', 'rls')
-call ale#Set('rust_rls_toolchain', 'nightly')
-
-function! ale_linters#rust#rls#GetExecutable(buffer) abort
-    return ale#Var(a:buffer, 'rust_rls_executable')
-endfunction
+call ale#Set('rust_rls_toolchain', '')
+call ale#Set('rust_rls_config', {})
 
 function! ale_linters#rust#rls#GetCommand(buffer) abort
-    let l:executable = ale_linters#rust#rls#GetExecutable(a:buffer)
     let l:toolchain = ale#Var(a:buffer, 'rust_rls_toolchain')
 
-    if empty(l:toolchain)
-      return ale#Escape(l:executable)
-    else
-      return ale#Escape(l:executable) . ' +' . ale#Escape(l:toolchain)
-    endif
+    return '%e' . (!empty(l:toolchain) ? ' +' . ale#Escape(l:toolchain) : '')
 endfunction
 
 function! ale_linters#rust#rls#GetProjectRoot(buffer) abort
@@ -28,8 +20,8 @@ endfunction
 call ale#linter#Define('rust', {
 \   'name': 'rls',
 \   'lsp': 'stdio',
-\   'executable_callback': 'ale_linters#rust#rls#GetExecutable',
-\   'command_callback': 'ale_linters#rust#rls#GetCommand',
-\   'language': 'rust',
-\   'project_root_callback': 'ale_linters#rust#rls#GetProjectRoot',
+\   'lsp_config': {b -> ale#Var(b, 'rust_rls_config')},
+\   'executable': {b -> ale#Var(b, 'rust_rls_executable')},
+\   'command': function('ale_linters#rust#rls#GetCommand'),
+\   'project_root': function('ale_linters#rust#rls#GetProjectRoot'),
 \})

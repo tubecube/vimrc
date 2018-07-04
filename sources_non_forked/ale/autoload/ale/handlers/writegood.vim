@@ -59,3 +59,14 @@ function! ale#handlers#writegood#Handle(buffer, lines) abort
 
     return l:output
 endfunction
+
+" Define the writegood linter for a given filetype.
+function! ale#handlers#writegood#DefineLinter(filetype) abort
+    call ale#linter#Define(a:filetype, {
+    \   'name': 'writegood',
+    \   'aliases': ['write-good'],
+    \   'executable': function('ale#handlers#writegood#GetExecutable'),
+    \   'command': function('ale#handlers#writegood#GetCommand'),
+    \   'callback': 'ale#handlers#writegood#Handle',
+    \})
+endfunction

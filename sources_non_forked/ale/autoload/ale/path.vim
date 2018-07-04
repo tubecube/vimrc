@@ -65,7 +65,11 @@ endfunction
 " Output 'cd <directory> && '
 " This function can be used changing the directory for a linter command.
 function! ale#path#CdString(directory) abort
-    return 'cd ' . ale#Escape(a:directory) . ' && '
+    if has('win32')
+        return 'cd /d ' . ale#Escape(a:directory) . ' && '
+    else
+        return 'cd ' . ale#Escape(a:directory) . ' && '
+    endif
 endfunction
 
 " Output 'cd <buffer_filename_directory> && '
@@ -84,7 +88,7 @@ function! ale#path#IsAbsolute(filename) abort
     return a:filename[:0] is# '/' || a:filename[1:2] is# ':\'
 endfunction
 
-let s:temp_dir = ale#path#Simplify(fnamemodify(tempname(), ':h'))
+let s:temp_dir = ale#path#Simplify(fnamemodify(ale#util#Tempname(), ':h'))
 
 " Given a filename, return 1 if the file represents some temporary file
 " created by Vim.
@@ -103,6 +107,21 @@ function! ale#path#GetAbsPath(base_directory, filename) abort
     let l:sep = has('win32') ? '\' : '/'
 
     return ale#path#Simplify(a:base_directory . l:sep . a:filename)
+endfunction
+
+" Given a path, return the directory name for that path, with no trailing
+" slashes. If the argument is empty(), return an empty string.
+function! ale#path#Dirname(path) abort
+    if empty(a:path)
+        return ''
+    endif
+
+    " For /foo/bar/ we need :h:h to get /foo
+    if a:path[-1:] is# '/'
+        return fnamemodify(a:path, ':h:h')
+    endif
+
+    return fnamemodify(a:path, ':h')
 endfunction
 
 " Given a buffer number and a relative or absolute path, return 1 if the
@@ -178,14 +197,20 @@ function! ale#path#ToURI(path) abort
 endfunction
 
 function! ale#path#FromURI(uri) abort
-    let l:i = len('file://')
-    let l:encoded_path = a:uri[: l:i - 1] is# 'file://' ? a:uri[l:i :] : a:uri
+    if a:uri[:6] is? 'file://'
+        let l:encoded_path = a:uri[7:]
+    elseif a:uri[:4] is? 'file:'
+        let l:encoded_path = a:uri[5:]
+    else
+        let l:encoded_path = a:uri
+    endif
 
     let l:path = ale#uri#Decode(l:encoded_path)
 
     " If the path is like /C:/foo/bar, it should be C:\foo\bar instead.
-    if l:path =~# '^/[a-zA-Z]:'
+    if has('win32') && l:path =~# '^/[a-zA-Z][:|]'
         let l:path = substitute(l:path[1:], '/', '\\', 'g')
+        let l:path = l:path[0] . ':' . l:path[2:]
     endif
 
     return l:path

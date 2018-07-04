@@ -26,34 +26,11 @@ function! s:KillHandler(timer) abort
     call job_stop(l:job, 'kill')
 endfunction
 
-" Note that jobs and IDs are the same thing on NeoVim.
-function! ale#job#JoinNeovimOutput(job, last_line, data, mode, callback) abort
-    if a:mode is# 'raw'
-        call a:callback(a:job, join(a:data, "\n"))
-        return ''
-    endif
-
-    let l:lines = a:data[:-2]
-
-    if len(a:data) > 1
-        let l:lines[0] = a:last_line . l:lines[0]
-        let l:new_last_line = a:data[-1]
-    else
-        let l:new_last_line = a:last_line . get(a:data, 0, '')
-    endif
-
-    for l:line in l:lines
-        call a:callback(a:job, l:line)
-    endfor
-
-    return l:new_last_line
-endfunction
-
 function! s:NeoVimCallback(job, data, event) abort
     let l:info = s:job_map[a:job]
 
     if a:event is# 'stdout'
-        let l:info.out_cb_line = ale#job#JoinNeovimOutput(
+        let l:info.out_cb_line = ale#util#JoinNeovimOutput(
         \   a:job,
         \   l:info.out_cb_line,
         \   a:data,
@@ -61,7 +38,7 @@ function! s:NeoVimCallback(job, data, event) abort
         \   ale#util#GetFunction(l:info.out_cb),
         \)
     elseif a:event is# 'stderr'
-        let l:info.err_cb_line = ale#job#JoinNeovimOutput(
+        let l:info.err_cb_line = ale#util#JoinNeovimOutput(
         \   a:job,
         \   l:info.err_cb_line,
         \   a:data,
@@ -122,7 +99,8 @@ function! s:VimCloseCallback(channel) abort
     if job_status(l:job) is# 'dead'
         try
             if !empty(l:info) && has_key(l:info, 'exit_cb')
-                call ale#util#GetFunction(l:info.exit_cb)(l:job_id, get(l:info, 'exit_code', 1))
+                " We have to remove the callback, so we don't call it twice.
+                call ale#util#GetFunction(remove(l:info, 'exit_cb'))(l:job_id, get(l:info, 'exit_code', 1))
             endif
         finally
             " Automatically forget about the job after it's done.
@@ -147,7 +125,8 @@ function! s:VimExitCallback(job, exit_code) abort
     if ch_status(job_getchannel(a:job)) is# 'closed'
         try
             if !empty(l:info) && has_key(l:info, 'exit_cb')
-                call ale#util#GetFunction(l:info.exit_cb)(l:job_id, a:exit_code)
+                " We have to remove the callback, so we don't call it twice.
+                call ale#util#GetFunction(remove(l:info, 'exit_cb'))(l:job_id, a:exit_code)
             endif
         finally
             " Automatically forget about the job after it's done.
@@ -196,10 +175,6 @@ endfunction
 function! ale#job#PrepareCommand(buffer, command) abort
     let l:wrapper = ale#Var(a:buffer, 'command_wrapper')
 
-    let l:command = !empty(l:wrapper)
-    \ ? s:PrepareWrappedCommand(l:wrapper, a:command)
-    \ : a:command
-
     " The command will be executed in a subshell. This fixes a number of
     " issues, including reading the PATH variables correctly, %PATHEXT%
     " expansion on Windows, etc.
@@ -207,6 +182,17 @@ function! ale#job#PrepareCommand(buffer, command) abort
     " NeoVim handles this issue automatically if the command is a String,
     " but we'll do this explicitly, so we use the same exact command for both
     " versions.
+    let l:command = !empty(l:wrapper)
+    \ ? s:PrepareWrappedCommand(l:wrapper, a:command)
+    \ : a:command
+
+    " If a custom shell is specified, use that.
+    if exists('g:ale_shell')
+        let l:shell_arguments = get(g:, 'ale_shell_arguments', &shellcmdflag)
+
+        return split(g:ale_shell) + split(l:shell_arguments) + [l:command]
+    endif
+
     if has('win32')
         return 'cmd /s/c "' . l:command . '"'
     endif
@@ -272,6 +258,11 @@ function! ale#job#Start(command, options) abort
             let l:job_options.exit_cb = function('s:VimExitCallback')
         endif
 
+        " Use non-blocking writes for Vim versions that support the option.
+        if has('patch-8.1.350')
+            let l:job_options.noblock = 1
+        endif
+
         " Vim 8 will read the stdin from the file's buffer.
         let l:job_info.job = job_start(a:command, l:job_options)
         let l:job_id = ale#job#ParseVim8ProcessID(string(l:job_info.job))
@@ -285,12 +276,34 @@ function! ale#job#Start(command, options) abort
     return l:job_id
 endfunction
 
+" Force running commands in a Windows CMD command line.
+" This means the same command syntax works everywhere.
+function! ale#job#StartWithCmd(command, options) abort
+    let l:shell = &l:shell
+    let l:shellcmdflag = &l:shellcmdflag
+    let &l:shell = 'cmd'
+    let &l:shellcmdflag = '/c'
+
+    try
+        let l:job_id = ale#job#Start(a:command, a:options)
+    finally
+        let &l:shell = l:shell
+        let &l:shellcmdflag = l:shellcmdflag
+    endtry
+
+    return l:job_id
+endfunction
+
 " Send raw data to the job.
 function! ale#job#SendRaw(job_id, string) abort
     if has('nvim')
         call jobsend(a:job_id, a:string)
     else
-        call ch_sendraw(job_getchannel(s:job_map[a:job_id].job), a:string)
+        let l:job = s:job_map[a:job_id].job
+
+        if ch_status(l:job) is# 'open'
+            call ch_sendraw(job_getchannel(l:job), a:string)
+        endif
     endif
 endfunction
 
@@ -301,12 +314,28 @@ function! ale#job#IsRunning(job_id) abort
         try
             " In NeoVim, if the job isn't running, jobpid() will throw.
             call jobpid(a:job_id)
+
             return 1
         catch
         endtry
     elseif has_key(s:job_map, a:job_id)
         let l:job = s:job_map[a:job_id].job
+
         return job_status(l:job) is# 'run'
+    endif
+
+    return 0
+endfunction
+
+function! ale#job#HasOpenChannel(job_id) abort
+    if ale#job#IsRunning(a:job_id)
+        if has('nvim')
+            " TODO: Implement a check for NeoVim.
+            return 1
+        endif
+
+        " Check if the Job's channel can be written to.
+        return ch_status(s:job_map[a:job_id].job) is# 'open'
     endif
 
     return 0

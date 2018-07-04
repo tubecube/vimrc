@@ -99,6 +99,13 @@ function! ale#handlers#eslint#Handle(buffer, lines) abort
         \}]
     endif
 
+    if a:lines == ['Could not connect']
+        return [{
+        \   'lnum': 1,
+        \   'text': 'Could not connect to eslint_d. Try updating eslint_d or killing it.',
+        \}]
+    endif
+
     " Matches patterns line the following:
     "
     " /path/to/some-filename.js:47:14: Missing trailing comma. [Warning/comma-dangle]
@@ -114,7 +121,7 @@ function! ale#handlers#eslint#Handle(buffer, lines) abort
         let l:text = l:match[3]
 
         if ale#Var(a:buffer, 'javascript_eslint_suppress_eslintignore')
-            if l:text is# 'File ignored because of a matching ignore pattern. Use "--no-ignore" to override.'
+            if l:text =~# '^File ignored'
                 continue
             endif
         endif
@@ -136,6 +143,11 @@ function! ale#handlers#eslint#Handle(buffer, lines) abort
         " The code can be something like 'Error/foo/bar', or just 'Error'
         if !empty(get(l:split_code, 1))
             let l:obj.code = join(l:split_code[1:], '/')
+
+            if l:obj.code is# 'no-trailing-spaces'
+            \&& !ale#Var(a:buffer, 'warn_about_trailing_whitespace')
+                continue
+            endif
         endif
 
         for l:col_match in ale#util#GetMatches(l:text, s:col_end_patterns)

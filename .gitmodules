@@ -1,0 +1,3 @@
+[submodule "sources_non_forked/comfortable-motion.vim"]
+	path = sources_non_forked/comfortable-motion.vim
+	url = https://github.com/yuttie/comfortable-motion.vim

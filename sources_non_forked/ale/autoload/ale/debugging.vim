@@ -22,15 +22,16 @@ let s:global_variable_list = [
 \    'ale_lint_delay',
 \    'ale_lint_on_enter',
 \    'ale_lint_on_filetype_changed',
+\    'ale_lint_on_insert_leave',
 \    'ale_lint_on_save',
 \    'ale_lint_on_text_changed',
-\    'ale_lint_on_insert_leave',
 \    'ale_linter_aliases',
 \    'ale_linters',
 \    'ale_linters_explicit',
-\    'ale_list_window_size',
 \    'ale_list_vertical',
+\    'ale_list_window_size',
 \    'ale_loclist_msg_format',
+\    'ale_lsp_root',
 \    'ale_max_buffer_history_size',
 \    'ale_max_signs',
 \    'ale_maximum_file_size',
@@ -52,6 +53,7 @@ let s:global_variable_list = [
 \    'ale_statusline_format',
 \    'ale_type_map',
 \    'ale_use_global_executables',
+\    'ale_virtualtext_cursor',
 \    'ale_warn_about_trailing_blank_lines',
 \    'ale_warn_about_trailing_whitespace',
 \]
@@ -214,10 +216,15 @@ function! ale#debugging#Info() abort
     " This must be done after linters are loaded.
     let l:variable_list = s:GetLinterVariables(l:filetype, l:enabled_names)
 
+    let l:fixers = ale#fix#registry#SuggestedFixers(l:filetype)
+    let l:fixers = uniq(sort(l:fixers[0] + l:fixers[1]))
+    let l:fixers_string = join(map(copy(l:fixers), '"\n  " . v:val'), '')
+
     call s:Echo(' Current Filetype: ' . l:filetype)
     call s:Echo('Available Linters: ' . string(l:all_names))
     call s:EchoLinterAliases(l:all_linters)
     call s:Echo('  Enabled Linters: ' . string(l:enabled_names))
+    call s:Echo(' Suggested Fixers: ' . l:fixers_string)
     call s:Echo(' Linter Variables:')
     call s:Echo('')
     call s:EchoLinterVariables(l:variable_list)
@@ -231,10 +238,11 @@ function! ale#debugging#Info() abort
 endfunction
 
 function! ale#debugging#InfoToClipboard() abort
-    redir @+>
+    redir => l:output
         silent call ale#debugging#Info()
     redir END
 
+    let @+ = l:output
     call s:Echo('ALEInfo copied to your clipboard')
 endfunction
 

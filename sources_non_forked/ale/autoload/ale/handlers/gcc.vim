@@ -5,6 +5,14 @@ scriptencoding utf-8
 
 let s:pragma_error = '#pragma once in main file'
 
+" Look for lines like the following.
+"
+" <stdin>:8:5: warning: conversion lacks type at end of format [-Wformat=]
+" <stdin>:10:27: error: invalid operands to binary - (have ‘int’ and ‘char *’)
+" -:189:7: note: $/${} is unnecessary on arithmetic variables. [SC2004]
+let s:pattern = '\v^([a-zA-Z]?:?[^:]+):(\d+):(\d+)?:? ([^:]+): (.+)$'
+let s:inline_pattern = '\v inlined from .* at \<stdin\>:(\d+):(\d+):$'
+
 function! s:IsHeaderFile(filename) abort
     return a:filename =~? '\v\.(h|hpp)$'
 endfunction
@@ -18,16 +26,85 @@ function! s:RemoveUnicodeQuotes(text) abort
     return l:text
 endfunction
 
+function! s:ParseInlinedFunctionProblems(buffer, lines) abort
+    let l:output = []
+    let l:pos_match = []
+
+    for l:line in a:lines
+        let l:match = matchlist(l:line, s:pattern)
+
+        if !empty(l:match) && !empty(l:pos_match)
+            call add(l:output, {
+            \   'lnum': str2nr(l:pos_match[1]),
+            \   'col': str2nr(l:pos_match[2]),
+            \   'type': (l:match[4] is# 'error' || l:match[4] is# 'fatal error') ? 'E' : 'W',
+            \   'text': s:RemoveUnicodeQuotes(l:match[5]),
+            \})
+        endif
+
+        let l:pos_match = matchlist(l:line, s:inline_pattern)
+    endfor
+
+    return l:output
+endfunction
+
+" Report problems inside of header files just for gcc and clang
+function! s:ParseProblemsInHeaders(buffer, lines) abort
+    let l:output = []
+    let l:include_item = {}
+
+    for l:line in a:lines[: -2]
+        let l:include_match = matchlist(l:line, '\v^In file included from')
+
+        if !empty(l:include_item)
+            let l:pattern_match = matchlist(l:line, s:pattern)
+
+            if !empty(l:pattern_match) && l:pattern_match[1] is# '<stdin>'
+                if has_key(l:include_item, 'lnum')
+                    call add(l:output, l:include_item)
+                endif
+
+                let l:include_item = {}
+
+                continue
+            endif
+
+            let l:include_item.detail .= "\n" . l:line
+        endif
+
+        if !empty(l:include_match)
+            if empty(l:include_item)
+                let l:include_item = {
+                \   'text': 'Error found in header. See :ALEDetail',
+                \   'detail': l:line,
+                \}
+            endif
+        endif
+
+        if !empty(l:include_item)
+            let l:stdin_match = matchlist(l:line, '\vfrom \<stdin\>:(\d+):(\d*):?$')
+
+            if !empty(l:stdin_match)
+                let l:include_item.lnum = str2nr(l:stdin_match[1])
+
+                if str2nr(l:stdin_match[2])
+                    let l:include_item.col = str2nr(l:stdin_match[2])
+                endif
+            endif
+        endif
+    endfor
+
+    if !empty(l:include_item) && has_key(l:include_item, 'lnum')
+        call add(l:output, l:include_item)
+    endif
+
+    return l:output
+endfunction
+
 function! ale#handlers#gcc#HandleGCCFormat(buffer, lines) abort
-    " Look for lines like the following.
-    "
-    " <stdin>:8:5: warning: conversion lacks type at end of format [-Wformat=]
-    " <stdin>:10:27: error: invalid operands to binary - (have ‘int’ and ‘char *’)
-    " -:189:7: note: $/${} is unnecessary on arithmetic variables. [SC2004]
-    let l:pattern = '\v^([a-zA-Z]?:?[^:]+):(\d+):(\d+)?:? ([^:]+): (.+)$'
     let l:output = []
 
-    for l:match in ale#util#GetMatches(a:lines, l:pattern)
+    for l:match in ale#util#GetMatches(a:lines, s:pattern)
         " Filter out the pragma errors
         if s:IsHeaderFile(bufname(bufnr('')))
         \&& l:match[5][:len(s:pragma_error) - 1] is# s:pragma_error
@@ -38,9 +115,12 @@ function! ale#handlers#gcc#HandleGCCFormat(buffer, lines) abort
         " the previous error parsed in output
         if l:match[4] is# 'note'
             if !empty(l:output)
-                let l:output[-1]['detail'] =
-                \   get(l:output[-1], 'detail', '')
-                \   . s:RemoveUnicodeQuotes(l:match[0]) . "\n"
+                if !has_key(l:output[-1], 'detail')
+                    let l:output[-1].detail = l:output[-1].text
+                endif
+
+                let l:output[-1].detail = l:output[-1].detail . "\n"
+                \   . s:RemoveUnicodeQuotes(l:match[0])
             endif
 
             continue
@@ -64,6 +144,16 @@ function! ale#handlers#gcc#HandleGCCFormat(buffer, lines) abort
 
         call add(l:output, l:item)
     endfor
+
+    return l:output
+endfunction
+
+" Handle problems with the GCC format, but report problems inside of headers.
+function! ale#handlers#gcc#HandleGCCFormatWithIncludes(buffer, lines) abort
+    let l:output = ale#handlers#gcc#HandleGCCFormat(a:buffer, a:lines)
+
+    call extend(l:output, s:ParseInlinedFunctionProblems(a:buffer, a:lines))
+    call extend(l:output, s:ParseProblemsInHeaders(a:buffer, a:lines))
 
     return l:output
 endfunction

@@ -28,12 +28,12 @@ function! ale#lsp#response#ReadDiagnostics(response) abort
     for l:diagnostic in a:response.params.diagnostics
         let l:severity = get(l:diagnostic, 'severity', 0)
         let l:loclist_item = {
-        \   'text': l:diagnostic.message,
+        \   'text': substitute(l:diagnostic.message, '\(\r\n\|\n\|\r\)', ' ', 'g'),
         \   'type': 'E',
         \   'lnum': l:diagnostic.range.start.line + 1,
         \   'col': l:diagnostic.range.start.character + 1,
         \   'end_lnum': l:diagnostic.range.end.line + 1,
-        \   'end_col': l:diagnostic.range.end.character + 1,
+        \   'end_col': l:diagnostic.range.end.character,
         \}
 
         if l:severity == s:SEVERITY_WARNING
@@ -47,7 +47,31 @@ function! ale#lsp#response#ReadDiagnostics(response) abort
         endif
 
         if has_key(l:diagnostic, 'code')
-            let l:loclist_item.nr = l:diagnostic.code
+            if type(l:diagnostic.code) == v:t_string
+                let l:loclist_item.code = l:diagnostic.code
+            elseif type(l:diagnostic.code) == v:t_number && l:diagnostic.code != -1
+                let l:loclist_item.code = string(l:diagnostic.code)
+                let l:loclist_item.nr = l:diagnostic.code
+            endif
+        endif
+
+        if has_key(l:diagnostic, 'relatedInformation')
+            let l:related = deepcopy(l:diagnostic.relatedInformation)
+            call map(l:related, {key, val ->
+            \   ale#path#FromURI(val.location.uri) .
+            \   ':' . (val.location.range.start.line + 1) .
+            \   ':' . (val.location.range.start.character + 1) .
+            \   ":\n\t" . val.message
+            \})
+            let l:loclist_item.detail = l:diagnostic.message . "\n" . join(l:related, "\n")
+        endif
+
+        if has_key(l:diagnostic, 'source')
+            let l:loclist_item.detail = printf(
+            \   '[%s] %s',
+            \   l:diagnostic.source,
+            \   l:diagnostic.message
+            \)
         endif
 
         call add(l:loclist, l:loclist_item)
@@ -70,7 +94,12 @@ function! ale#lsp#response#ReadTSServerDiagnostics(response) abort
         \}
 
         if has_key(l:diagnostic, 'code')
-            let l:loclist_item.nr = l:diagnostic.code
+            if type(l:diagnostic.code) == v:t_string
+                let l:loclist_item.code = l:diagnostic.code
+            elseif type(l:diagnostic.code) == v:t_number && l:diagnostic.code != -1
+                let l:loclist_item.code = string(l:diagnostic.code)
+                let l:loclist_item.nr = l:diagnostic.code
+            endif
         endif
 
         if get(l:diagnostic, 'category') is# 'warning'
@@ -88,7 +117,7 @@ function! ale#lsp#response#ReadTSServerDiagnostics(response) abort
 endfunction
 
 function! ale#lsp#response#GetErrorMessage(response) abort
-    if type(get(a:response, 'error', 0)) isnot type({})
+    if type(get(a:response, 'error', 0)) isnot v:t_dict
         return ''
     endif
 
@@ -105,11 +134,17 @@ function! ale#lsp#response#GetErrorMessage(response) abort
         return ''
     endif
 
-    " Include the traceback as details, if it's there.
-    let l:traceback = get(get(a:response.error, 'data', {}), 'traceback', [])
+    " Include the traceback or error data as details, if present.
+    let l:error_data = get(a:response.error, 'data', {})
 
-    if type(l:traceback) is type([]) && !empty(l:traceback)
-        let l:message .= "\n" . join(l:traceback, "\n")
+    if type(l:error_data) is v:t_string
+        let l:message .= "\n" . l:error_data
+    elseif type(l:error_data) is v:t_dict
+        let l:traceback = get(l:error_data, 'traceback', [])
+
+        if type(l:traceback) is v:t_list && !empty(l:traceback)
+            let l:message .= "\n" . join(l:traceback, "\n")
+        endif
     endif
 
     return l:message

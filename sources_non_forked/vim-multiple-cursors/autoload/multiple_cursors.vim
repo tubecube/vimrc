@@ -1230,7 +1230,7 @@ function! s:wait_for_user_input(mode)
     let s:saved_keys = ""
   endif
 
-  " ambiguous mappings are note supported; e.g.:
+  " ambiguous mappings are not supported; e.g.:
   "   imap jj JJ
   "   imap jjj JJJ
   " will always trigger the 'jj' mapping
@@ -1239,8 +1239,8 @@ function! s:wait_for_user_input(mode)
     let s_time = s:get_time_in_ms()
     while 1
       let map_dict = maparg(s:char, "i", 0, 1)
-      " break if chars exactly match mapping or if chars don't match beging of mapping anymore
-      if map_dict != {} || mapcheck(s:char, "i") == ""
+      " break if chars exactly match mapping
+      if map_dict != {}
         if get(map_dict, 'expr', 0)
           " handle case where {rhs} is a function
           exec 'let char_mapping = ' . map_dict['rhs']
@@ -1249,6 +1249,10 @@ function! s:wait_for_user_input(mode)
         endif
         " handle case where mapping is <esc>
         exec 'let s:char = "'.substitute(char_mapping, '<', '\\<', 'g').'"'
+        break
+      endif
+      " break if chars don't match beginning of mapping anymore
+      if mapcheck(s:char, "i") == ""
         break
       endif
       if s:get_time_in_ms() > (s_time + &timeoutlen)
@@ -1262,7 +1266,7 @@ function! s:wait_for_user_input(mode)
     endwhile
   elseif s:from_mode !=# 'i' && s:char[0] ==# ":"
     call feedkeys(s:char)
-    call s:cm.reset(1, 1)
+    call s:cm.reset(1, 1, 1)
     return
   elseif s:from_mode ==# 'n' || s:from_mode =~# 'v\|V'
     while match(s:last_char(), "\\d") == 0

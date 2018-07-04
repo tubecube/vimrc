@@ -1,13 +1,6 @@
 " Author: KabbAmine <amine.kabb@gmail.com>
+" Additions by: petpetpetpet <chris@freelanceninjas.com>
 " Description: Statusline related function(s)
-
-" remove in 2.0
-"
-" A deprecated setting for ale#statusline#Status()
-" See :help ale#statusline#Count() for getting status reports.
-let g:ale_statusline_format = get(g:, 'ale_statusline_format',
-\   ['%d error(s)', '%d warning(s)', 'OK']
-\)
 
 function! s:CreateCountDict() abort
     " Keys 0 and 1 are for backwards compatibility.
@@ -34,19 +27,42 @@ function! ale#statusline#Update(buffer, loclist) abort
     let l:count = s:CreateCountDict()
     let l:count.total = len(l:loclist)
 
+    " Allows easy access to the first instance of each problem type.
+    let l:first_problems = {}
+
     for l:entry in l:loclist
         if l:entry.type is# 'W'
             if get(l:entry, 'sub_type', '') is# 'style'
                 let l:count.style_warning += 1
+
+                if l:count.style_warning == 1
+                    let l:first_problems.style_warning = l:entry
+                endif
             else
                 let l:count.warning += 1
+
+                if l:count.warning == 1
+                    let l:first_problems.warning = l:entry
+                endif
             endif
         elseif l:entry.type is# 'I'
             let l:count.info += 1
+
+            if l:count.info == 1
+                let l:first_problems.info = l:entry
+            endif
         elseif get(l:entry, 'sub_type', '') is# 'style'
             let l:count.style_error += 1
+
+            if l:count.style_error == 1
+                let l:first_problems.style_error = l:entry
+            endif
         else
             let l:count.error += 1
+
+            if l:count.error == 1
+                let l:first_problems.error = l:entry
+            endif
         endif
     endfor
 
@@ -55,20 +71,48 @@ function! ale#statusline#Update(buffer, loclist) abort
     let l:count[1] = l:count.total - l:count[0]
 
     let g:ale_buffer_info[a:buffer].count = l:count
+    let g:ale_buffer_info[a:buffer].first_problems = l:first_problems
+endfunction
+
+" Get the counts for the buffer, and update the counts if needed.
+function! s:UpdateCacheIfNecessary(buffer) abort
+    " Cache is cold, so manually ask for an update.
+    if !has_key(g:ale_buffer_info[a:buffer], 'count')
+        call ale#statusline#Update(
+        \   a:buffer,
+        \   g:ale_buffer_info[a:buffer].loclist
+        \)
+    endif
+endfunction
+
+function! s:BufferCacheExists(buffer) abort
+    if !exists('g:ale_buffer_info') || !has_key(g:ale_buffer_info, a:buffer)
+        return 0
+    endif
+
+    return 1
 endfunction
 
 " Get the counts for the buffer, and update the counts if needed.
 function! s:GetCounts(buffer) abort
-    if !exists('g:ale_buffer_info') || !has_key(g:ale_buffer_info, a:buffer)
+    if !s:BufferCacheExists(a:buffer)
         return s:CreateCountDict()
     endif
 
-    " Cache is cold, so manually ask for an update.
-    if !has_key(g:ale_buffer_info[a:buffer], 'count')
-        call ale#statusline#Update(a:buffer, g:ale_buffer_info[a:buffer].loclist)
-    endif
+    call s:UpdateCacheIfNecessary(a:buffer)
 
     return g:ale_buffer_info[a:buffer].count
+endfunction
+
+" Get the dict of first_problems, update the buffer info cache if necessary.
+function! s:GetFirstProblems(buffer) abort
+    if !s:BufferCacheExists(a:buffer)
+        return {}
+    endif
+
+    call s:UpdateCacheIfNecessary(a:buffer)
+
+    return g:ale_buffer_info[a:buffer].first_problems
 endfunction
 
 " Returns a Dictionary with counts for use in third party integrations.
@@ -77,46 +121,15 @@ function! ale#statusline#Count(buffer) abort
     return copy(s:GetCounts(a:buffer))
 endfunction
 
-" This is the historical format setting which could be configured before.
-function! s:StatusForListFormat() abort
-    let [l:error_format, l:warning_format, l:no_errors] = g:ale_statusline_format
-    let l:counts = s:GetCounts(bufnr(''))
+" Returns a copy of the *first* locline instance of the specified problem
+" type. (so this would allow an external integration to know all the info
+" about the first style warning in the file, for example.)
+function! ale#statusline#FirstProblem(buffer, type) abort
+    let l:first_problems = s:GetFirstProblems(a:buffer)
 
-    " Build strings based on user formatting preferences.
-    let l:errors = l:counts[0] ? printf(l:error_format, l:counts[0]) : ''
-    let l:warnings = l:counts[1] ? printf(l:warning_format, l:counts[1]) : ''
-
-    " Different formats based on the combination of errors and warnings.
-    if empty(l:errors) && empty(l:warnings)
-        let l:res = l:no_errors
-    elseif !empty(l:errors) && !empty(l:warnings)
-        let l:res = printf('%s %s', l:errors, l:warnings)
-    else
-        let l:res = empty(l:errors) ? l:warnings : l:errors
+    if !empty(l:first_problems) && has_key(l:first_problems, a:type)
+        return copy(l:first_problems[a:type])
     endif
 
-    return l:res
-endfunction
-
-" remove in 2.0
-"
-" Returns a formatted string that can be integrated in the statusline.
-"
-" This function is deprecated, and should not be used. Use the airline plugin
-" instead, or write your own status function with ale#statusline#Count()
-function! ale#statusline#Status() abort
-    if !get(g:, 'ale_deprecation_ale_statusline_status', 0)
-        execute 'echom ''ale#statusline#Status() is deprecated, use ale#statusline#Count() to write your own function.'''
-        let g:ale_deprecation_ale_statusline_status = 1
-    endif
-
-    if !exists('g:ale_statusline_format')
-        return 'OK'
-    endif
-
-    if type(g:ale_statusline_format) == type([])
-        return s:StatusForListFormat()
-    endif
-
-    return ''
+    return {}
 endfunction

@@ -45,37 +45,40 @@ if !hlexists('ALESignColumnWithErrors')
     highlight link ALESignColumnWithErrors error
 endif
 
+function! ale#sign#SetUpDefaultColumnWithoutErrorsHighlight() abort
+    redir => l:output
+        0verbose silent highlight SignColumn
+    redir end
+
+    let l:highlight_syntax = join(split(l:output)[2:])
+    let l:match = matchlist(l:highlight_syntax, '\vlinks to (.+)$')
+
+    if !empty(l:match)
+        execute 'highlight link ALESignColumnWithoutErrors ' . l:match[1]
+    elseif l:highlight_syntax isnot# 'cleared'
+        execute 'highlight ALESignColumnWithoutErrors ' . l:highlight_syntax
+    endif
+endfunction
+
 if !hlexists('ALESignColumnWithoutErrors')
-    function! s:SetSignColumnWithoutErrorsHighlight() abort
-        redir => l:output
-            silent highlight SignColumn
-        redir end
-
-        let l:highlight_syntax = join(split(l:output)[2:])
-
-        let l:match = matchlist(l:highlight_syntax, '\vlinks to (.+)$')
-
-        if !empty(l:match)
-            execute 'highlight link ALESignColumnWithoutErrors ' . l:match[1]
-        elseif l:highlight_syntax isnot# 'cleared'
-            execute 'highlight ALESignColumnWithoutErrors ' . l:highlight_syntax
-        endif
-    endfunction
-
-    call s:SetSignColumnWithoutErrorsHighlight()
-    delfunction s:SetSignColumnWithoutErrorsHighlight
+    call ale#sign#SetUpDefaultColumnWithoutErrorsHighlight()
 endif
 
+" Spaces and backslashes need to be escaped for signs.
+function! s:EscapeSignText(sign_text) abort
+    return substitute(substitute(a:sign_text, ' *$', '', ''), '\\\| ', '\\\0', 'g')
+endfunction
+
 " Signs show up on the left for error markers.
-execute 'sign define ALEErrorSign text=' . g:ale_sign_error
+execute 'sign define ALEErrorSign text=' . s:EscapeSignText(g:ale_sign_error)
 \   . ' texthl=ALEErrorSign linehl=ALEErrorLine'
-execute 'sign define ALEStyleErrorSign text=' . g:ale_sign_style_error
+execute 'sign define ALEStyleErrorSign text=' .  s:EscapeSignText(g:ale_sign_style_error)
 \   . ' texthl=ALEStyleErrorSign linehl=ALEErrorLine'
-execute 'sign define ALEWarningSign text=' . g:ale_sign_warning
+execute 'sign define ALEWarningSign text=' . s:EscapeSignText(g:ale_sign_warning)
 \   . ' texthl=ALEWarningSign linehl=ALEWarningLine'
-execute 'sign define ALEStyleWarningSign text=' . g:ale_sign_style_warning
+execute 'sign define ALEStyleWarningSign text=' . s:EscapeSignText(g:ale_sign_style_warning)
 \   . ' texthl=ALEStyleWarningSign linehl=ALEWarningLine'
-execute 'sign define ALEInfoSign text=' . g:ale_sign_info
+execute 'sign define ALEInfoSign text=' . s:EscapeSignText(g:ale_sign_info)
 \   . ' texthl=ALEInfoSign linehl=ALEInfoLine'
 sign define ALEDummySign
 
@@ -118,7 +121,7 @@ endfunction
 " Read sign data for a buffer to a list of lines.
 function! ale#sign#ReadSigns(buffer) abort
     redir => l:output
-       silent execute 'sign place buffer=' . a:buffer
+        silent execute 'sign place buffer=' . a:buffer
     redir end
 
     return split(l:output, "\n")
@@ -213,7 +216,7 @@ function! s:BuildSignMap(buffer, current_sign_list, grouped_items) abort
 
     if l:max_signs is 0
         let l:selected_grouped_items = []
-    elseif type(l:max_signs) is type(0) && l:max_signs > 0
+    elseif type(l:max_signs) is v:t_number && l:max_signs > 0
         let l:selected_grouped_items = a:grouped_items[:l:max_signs - 1]
     else
         let l:selected_grouped_items = a:grouped_items
