@@ -12,24 +12,26 @@ let s:vim_runtime = expand('<sfile>:p:h')."/.."
 call pathogen#infect(s:vim_runtime.'/sources_non_forked/{}')
 call pathogen#helptags()
 
-""""""""""""""""""""""""""""""
-" => MRU plugin
-""""""""""""""""""""""""""""""
-let MRU_Max_Entries = 400
 
+""""""""""""""""""""""""""""""
+" => FZF
+""""""""""""""""""""""""""""""
+nmap <leader>f :Files<cr>
+nmap <leader>b :Buffers<cr>
+nmap <leader>g :Ag<space>
 
 """"""""""""""""""""""""""""""
 " => CTRL-P
 """"""""""""""""""""""""""""""
-let g:ctrlp_working_path_mode = 0
-let g:ctrlp_map = '<c-p>'
-let g:ctrlp_max_height = 10
-let g:ctrlp_custom_ignore = 'node_modules\|^\.DS_Store\|^\.git\|^\.coffee'
-let g:ctrlp_match_window = 'bottom,order:ttb,min:1,max:10,results:20'
-let g:ctrlp_follow_symlinks = 1
-nmap <leader>m :CtrlPMRU<cr>
-nmap <leader>b :CtrlPBuffer<cr>
-nmap <leader>f :CtrlP<cr>
+" let g:ctrlp_working_path_mode = 0
+" let g:ctrlp_map = '<c-p>'
+" let g:ctrlp_max_height = 10
+" let g:ctrlp_custom_ignore = 'node_modules\|^\.DS_Store\|^\.git\|^\.coffee'
+" let g:ctrlp_match_window = 'bottom,order:ttb,min:1,max:10,results:20'
+" let g:ctrlp_follow_symlinks = 1
+" nmap <leader>m :CtrlPMRU<cr>
+" nmap <leader>b :CtrlPBuffer<cr>
+" nmap <leader>f :CtrlP<cr>
 
 set wildignore+=*/bot/*
 
@@ -38,13 +40,6 @@ set wildignore+=*/bot/*
 """"""""""""""""""""""""""""""
 " Enable all functions in all modes
 let g:user_zen_mode='a'
-
-
-""""""""""""""""""""""""""""""
-" => Vim grep
-""""""""""""""""""""""""""""""
-let Grep_Skip_Dirs = 'RCS CVS SCCS .svn generated'
-set grepprg=/bin/grep\ -nH
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -110,21 +105,21 @@ let g:ale_lint_on_enter = 0
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => CtrlSF
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-nmap <leader>g <Plug>CtrlSFPrompt
-vmap <leader>g <Plug>CtrlSFVwordPath
-nnoremap <C-G> :CtrlSFToggle<CR>
-let g:ctrlsf_default_root = 'cwd'
-let g:ctrlsf_position = 'right'
-let g:ctrlsf_auto_focus = {
-	\	"at": "start"
-	\}
-let g:ctrlsf_mapping = {
-	\ "next": "n",
-	\ "prev": "N",
-	\ "openb": "",
-	\ "vsplit": "<C-V>",
-	\ "split": "<C-S>",
-	\}
+" nmap <leader>g <Plug>CtrlSFPrompt
+" vmap <leader>g <Plug>CtrlSFVwordPath
+" nnoremap <C-G> :CtrlSFToggle<CR>
+" let g:ctrlsf_default_root = 'cwd'
+" let g:ctrlsf_position = 'right'
+" let g:ctrlsf_auto_focus = {
+" 	\	"at": "start"
+" 	\}
+" let g:ctrlsf_mapping = {
+" 	\ "next": "n",
+" 	\ "prev": "N",
+" 	\ "openb": "",
+" 	\ "vsplit": "<C-V>",
+" 	\ "split": "<C-S>",
+" 	\}
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Airline
