@@ -33,13 +33,11 @@ nmap <leader>g :Ag<space>
 " nmap <leader>b :CtrlPBuffer<cr>
 " nmap <leader>f :CtrlP<cr>
 
-set wildignore+=*/bot/*
-
 """"""""""""""""""""""""""""""
 " => ZenCoding
 """"""""""""""""""""""""""""""
 " Enable all functions in all modes
-let g:user_zen_mode='a'
+" let g:user_zen_mode='a'
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -63,7 +61,7 @@ let g:multi_cursor_next_key="\<C-s>"
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => surround.vim config
-" Annotate strings with gettext 
+" Annotate strings with gettext
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 vmap Si S(i_<esc>f)
 au FileType mako vmap Si S"i${ _(<esc>2f"a) }<esc>
@@ -81,26 +79,26 @@ nnoremap <silent> <leader>z :Goyo<cr>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Vim-go
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:go_fmt_command = "goimports"
+" let g:go_fmt_command = "goimports"
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Syntastic (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:ale_linters = {
-\   'javascript': ['jshint'],
-\   'python': ['flake8'],
-\   'go': ['go', 'golint', 'errcheck']
-\}
+" let g:ale_linters = {
+" \   'javascript': ['jshint'],
+" \   'python': ['flake8'],
+" \   'go': ['go', 'golint', 'errcheck']
+" \}
 
-nmap <silent> <leader>a <Plug>(ale_next_wrap)
+" nmap <silent> <leader>a <Plug>(ale_next_wrap)
 
 " Disabling highlighting
-let g:ale_set_highlights = 0
+" let g:ale_set_highlights = 0
 
 " Only run linting when saving the file
-let g:ale_lint_on_text_changed = 'never'
-let g:ale_lint_on_enter = 0
+" let g:ale_lint_on_text_changed = 'never'
+" let g:ale_lint_on_enter = 0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => CtrlSF
@@ -130,7 +128,7 @@ let g:airline#extensions#tabline#buffer_idx_mode = 1
 let g:airline#extensions#tabline#show_tabs = 0
 let g:airline_symbols_ascii = 1
 let g:airline#extensions#tabline#formatter = 'unique_tail'
-let g:airline_theme = 'gruvbox'
+" let g:airline_theme = 'gruvbox'
 let g:airline_section_c = '%t'
 let g:airline_section_z = "%3p%% %L% "
 let g:airline#extensions#ale#enabled = 1
@@ -182,7 +180,7 @@ endfunction
 noremap <silent> <ScrollWheelDown> :call comfortable_motion#flick(40)<CR>
 noremap <silent> <ScrollWheelUp> :call comfortable_motion#flick(-40)<CR>
 
-let g:comfortable_motion_air_drag = 4.0
-let g:comfortable_motion_friction = 0.0
+let g:comfortable_motion_friction = 80.0
+let g:comfortable_motion_air_drag = 2.0
 
 set mouse=a
