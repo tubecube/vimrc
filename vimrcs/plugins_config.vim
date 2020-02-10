@@ -85,20 +85,20 @@ nnoremap <silent> <leader>z :Goyo<cr>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Syntastic (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" let g:ale_linters = {
-" \   'javascript': ['jshint'],
-" \   'python': ['flake8'],
-" \   'go': ['go', 'golint', 'errcheck']
-" \}
+let g:ale_linters = {
+\   'javascript': ['jshint'],
+\   'python': ['flake8'],
+\   'go': ['go', 'golint', 'errcheck']
+\}
 
-" nmap <silent> <leader>a <Plug>(ale_next_wrap)
+nmap <silent> <leader>a <Plug>(ale_next_wrap)
 
 " Disabling highlighting
-" let g:ale_set_highlights = 0
+let g:ale_set_highlights = 0
 
 " Only run linting when saving the file
-" let g:ale_lint_on_text_changed = 'never'
-" let g:ale_lint_on_enter = 0
+let g:ale_lint_on_text_changed = 'never'
+let g:ale_lint_on_enter = 0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => CtrlSF
@@ -128,7 +128,7 @@ let g:airline#extensions#tabline#buffer_idx_mode = 1
 let g:airline#extensions#tabline#show_tabs = 0
 let g:airline_symbols_ascii = 1
 let g:airline#extensions#tabline#formatter = 'unique_tail'
-" let g:airline_theme = 'gruvbox'
+let g:airline_theme = 'gruvbox'
 let g:airline_section_c = '%t'
 let g:airline_section_z = "%3p%% %L% "
 let g:airline#extensions#ale#enabled = 1
