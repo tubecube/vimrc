@@ -1,3 +1,6 @@
 [submodule "sources_non_forked/comfortable-motion.vim"]
 	path = sources_non_forked/comfortable-motion.vim
 	url = https://github.com/yuttie/comfortable-motion.vim
+[submodule "sources_non_forked/YouCompleteMe"]
+	path = sources_non_forked/YouCompleteMe
+	url = https://github.com/ycm-core/YouCompleteMe
