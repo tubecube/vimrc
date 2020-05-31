@@ -18,7 +18,8 @@ call pathogen#helptags()
 """"""""""""""""""""""""""""""
 nmap <leader>f :Files<cr>
 nmap <leader>b :Buffers<cr>
-nmap <leader>g :Ag<space>
+nnoremap <leader>g :Ag<space>
+cnoremap <leader>g <c-r>=expand("<cword>")<cr>
 
 """"""""""""""""""""""""""""""
 " => CTRL-P
@@ -184,3 +185,14 @@ let g:comfortable_motion_friction = 80.0
 let g:comfortable_motion_air_drag = 2.0
 
 set mouse=a
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" => YouCompleteMe
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+set completeopt-=preview
+let g:ycm_confirm_extra_conf = 0
+noremap <leader>r :YcmCompleter GoToReferences<cr>
+
+let g:ycm_max_num_candidates = 10
+let g:ycm_max_idendifier_candidates = 3
