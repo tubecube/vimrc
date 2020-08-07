@@ -4,3 +4,6 @@
 [submodule "sources_non_forked/YouCompleteMe"]
 	path = sources_non_forked/YouCompleteMe
 	url = https://github.com/ycm-core/YouCompleteMe
+[submodule "sources_non_forked/ctrlsf"]
+	path = sources_non_forked/ctrlsf
+	url = https://github.com/dyng/ctrlsf.vim.git

@@ -18,8 +18,8 @@ call pathogen#helptags()
 """"""""""""""""""""""""""""""
 nmap <leader>f :Files<cr>
 nmap <leader>b :Buffers<cr>
-nnoremap <leader>g :Ag<space>
-cnoremap <leader>g <c-r>=expand("<cword>")<cr>
+" nnoremap <leader>g :Ag<space>
+" cnoremap <leader>g <c-r>=expand("<cword>")<cr>
 
 """"""""""""""""""""""""""""""
 " => CTRL-P
@@ -57,7 +57,7 @@ autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isT
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => vim-multiple-cursors
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:multi_cursor_next_key="\<C-s>"
+" let g:multi_cursor_next_key="\<C-s>"
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -104,9 +104,10 @@ let g:ale_lint_on_enter = 0
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => CtrlSF
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" nmap <leader>g <Plug>CtrlSFPrompt
-" vmap <leader>g <Plug>CtrlSFVwordPath
-" nnoremap <C-G> :CtrlSFToggle<CR>
+nmap <leader>g <Plug>CtrlSFPrompt
+vmap <leader>g <Plug>CtrlSFVwordPath
+nnoremap <C-G> :CtrlSFToggle<CR>
+" let g:ctrlsf_default_view_mode = 'compact'
 " let g:ctrlsf_default_root = 'cwd'
 " let g:ctrlsf_position = 'right'
 " let g:ctrlsf_auto_focus = {
