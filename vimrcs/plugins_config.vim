@@ -197,3 +197,5 @@ noremap <leader>r :YcmCompleter GoToReferences<cr>
 
 let g:ycm_max_num_candidates = 10
 let g:ycm_max_idendifier_candidates = 3
+
+let g:gruvbox_contrast_dark = "hard"
